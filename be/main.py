@@ -2,10 +2,14 @@
 """FastAPI server for Tetris AI"""
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 import numpy as np
+import threading
+import queue
+import json
 from game_engine import GameState, Piece, TETROMINOS
 from ai_engine import TetrisAI
 import os
@@ -44,19 +48,14 @@ class SuggestionResponse(BaseModel):
     alternatives: List[Dict]
     confidence: str
 
-class AIMoveResponse(BaseModel):
-    piece: Dict
-    rotation: int
-    column: int
-    final_y: int
-
-class TrainRequest(BaseModel):
-    generations: int = 30
-    population_size: int = 40
-
-# Store game sessions (simple in-memory, replace with Redis for production)
-game_sessions = {}
-
+# Global training state
+training_state = {
+    "is_training": False,
+    "progress": 0,
+    "generation": 0,
+    "best_score": 0,
+    "message": "Idle"
+}
 
 @app.get("/")
 def root():
@@ -66,7 +65,6 @@ def root():
         "endpoints": [
             "/suggest - Get AI suggestions",
             "/ai-move - Get best AI move",
-            "/new-game - Start new game",
             "/health - Health check"
         ]
     }
@@ -82,7 +80,7 @@ def suggest_move(state: BoardState) -> SuggestionResponse:
         game.score = state.score
         game.lines = state.lines
         game.level = state.level
-        
+
         # Recreate current piece
         piece_data = state.current_piece
         game.current_piece = Piece(
@@ -91,13 +89,13 @@ def suggest_move(state: BoardState) -> SuggestionResponse:
             piece_data['x'],
             piece_data['y']
         )
-        
+
         # Get suggestions
         suggestions = ai.get_all_suggestions(game, top_k=3)
-        
+
         if not suggestions:
             raise HTTPException(status_code=400, detail="No valid moves available")
-        
+
         # Determine confidence based on score distribution
         if len(suggestions) > 1:
             score_diff = suggestions[0]['score'] - suggestions[1]['score']
@@ -109,13 +107,13 @@ def suggest_move(state: BoardState) -> SuggestionResponse:
                 confidence = "low"
         else:
             confidence = "high"
-        
+
         return SuggestionResponse(
             best_move=suggestions[0],
             alternatives=suggestions[1:],
             confidence=confidence
         )
-    
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -149,20 +147,6 @@ def get_ai_move(state: BoardState):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
-@app.post("/new-game")
-def new_game():
-    """Create new game session"""
-    game = GameState()
-    session_id = str(np.random.randint(0, 1000000))
-    game_sessions[session_id] = game
-    
-    return {
-        "session_id": session_id,
-        "state": game.to_dict()
-    }
-
-
 @app.get("/health")
 def health_check():
     return {
@@ -171,35 +155,53 @@ def health_check():
         "weights": ai.weights.tolist() if ai else None
     }
 
+@app.get("/train-stream")
+async def train_stream(generations: int = 30, population_size: int = 40):
+    """Stream training progress using Server-Sent Events"""
 
-@app.post("/train")
-def train_ai(request: TrainRequest):
-    """Train new AI weights (expensive operation)"""
-    try:
-        from trainer import train_genetic_algorithm
-        
-        new_weights, best_score = train_genetic_algorithm(
-            generations=request.generations,
-            population_size=request.population_size
-        )
-        
-        # Save weights
-        np.save("best_weights.npy", new_weights)
-        
-        # Update AI
-        global ai
-        ai = TetrisAI(new_weights)
-        
-        return {
-            "success": True,
-            "best_score": best_score,
-            "weights": new_weights.tolist(),
-            "message": "Training completed successfully"
-        }
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    if training_state["is_training"]:
+        raise HTTPException(status_code=400, detail="Training already in progress")
 
+    q = queue.Queue()
+
+    def worker():
+        global ai, training_state
+        training_state["is_training"] = True
+
+        def callback(stats):
+            training_state.update(stats)
+            q.put(stats)
+
+        try:
+            from trainer import train_genetic_algorithm
+            new_weights, best_score = train_genetic_algorithm(
+                generations=generations,
+                population_size=population_size,
+                callback=callback
+            )
+
+            np.save("best_weights.npy", new_weights)
+            ai = TetrisAI(new_weights)
+
+            q.put({"status": "complete", "best_score": best_score, "progress": 100})
+
+        except Exception as e:
+            q.put({"status": "error", "message": str(e)})
+        finally:
+            training_state["is_training"] = False
+            q.put(None)
+
+    thread = threading.Thread(target=worker)
+    thread.start()
+
+    def event_generator():
+        while True:
+            data = q.get()
+            if data is None:
+                break
+            yield f"data: {json.dumps(data)}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 if __name__ == "__main__":
     import uvicorn
