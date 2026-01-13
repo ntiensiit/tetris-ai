@@ -1,0 +1,23 @@
+-# Di chuyển vào thư mục backend
+cd be
+
+# Tạo virtual environment
+python -m venv venv
+ venv\Scripts\activate
+
+# Cài đặt dependencies
+pip install -r requirements.txt
+
+# Chạy server
+python main.py
+
+# Di chuyển vào thư mục frontend
+cd fe
+
+# Cài dependencies (nếu cần)
+npm install
+
+# Chạy dev server
+npm start
+
+(vào fe có mục train bấm vô rồi đợi train xong mới có ai, hơi lâu nên lâu lâu vào be check log )
