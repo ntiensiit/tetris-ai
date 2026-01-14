@@ -22,36 +22,36 @@ import { tetrisAPI } from '../utils/api'
 import { saveScore } from '../utils/scoreManager'
 
 const TetrisGame = () => {
-  const [mode, setMode] = useState('menu');
-  const [difficulty, setDifficulty] = useState(null);
-  const [gameStarted, setGameStarted] = useState(false);
-  const [board, setBoard] = useState(createBoard());
-  const [currentPiece, setCurrentPiece] = useState(null);
-  const [nextPiece, setNextPiece] = useState(null);
-  const [score, setScore] = useState(0);
-  const [lines, setLines] = useState(0);
-  const [level, setLevel] = useState(1);
-  const [gameOver, setGameOver] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [highScore, setHighScore] = useState(0);
+  const [mode, setMode] = useState('menu')
+  const [difficulty, setDifficulty] = useState(null)
+  const [gameStarted, setGameStarted] = useState(false)
+  const [board, setBoard] = useState(createBoard())
+  const [currentPiece, setCurrentPiece] = useState(null)
+  const [nextPiece, setNextPiece] = useState(null)
+  const [score, setScore] = useState(0)
+  const [lines, setLines] = useState(0)
+  const [level, setLevel] = useState(1)
+  const [gameOver, setGameOver] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  const [highScore, setHighScore] = useState(0)
 
-  const [aiSuggestion, setAiSuggestion] = useState(null);
-  const [showSuggestion, setShowSuggestion] = useState(true);
-  const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState(null)
+  const [showSuggestion, setShowSuggestion] = useState(true)
+  const [suggestionLoading, setSuggestionLoading] = useState(false)
 
-  const [showTraining, setShowTraining] = useState(false);
-  const [isTraining, setIsTraining] = useState(false);
-  const [trainingProgress, setTrainingProgress] = useState(null);
+  const [showTraining, setShowTraining] = useState(false)
+  const [isTraining, setIsTraining] = useState(false)
+  const [trainingProgress, setTrainingProgress] = useState(null)
 
-  const gameLoopRef = useRef(null);
-  const lastMoveTimeRef = useRef(Date.now());
-  const dropSpeedRef = useRef(500);
+  const gameLoopRef = useRef(null)
+  const lastMoveTimeRef = useRef(Date.now())
+  const dropSpeedRef = useRef(500)
 
   const dropSpeeds = {
     easy: 700,
     medium: 400,
     hard: 200,
-  };
+  }
 
   const spawnPiece = useCallback(() => {
     const type = nextPiece || getRandomPieceType()
@@ -82,10 +82,10 @@ const TetrisGame = () => {
   }, [board, level, spawnPiece])
 
   useEffect(() => {
-    if (!difficulty) return;
-    const baseSpeed = dropSpeeds[difficulty];
-    dropSpeedRef.current = Math.max(100, baseSpeed - (level - 1) * 50);
-  }, [level, difficulty]);
+    if (!difficulty) return
+    const baseSpeed = dropSpeeds[difficulty]
+    dropSpeedRef.current = Math.max(100, baseSpeed - (level - 1) * 50)
+  }, [level, difficulty])
 
   useEffect(() => {
     const newLevel = Math.floor(lines / 10) + 1
@@ -159,10 +159,10 @@ const TetrisGame = () => {
   }, [board, currentPiece, spawnPiece, level])
 
   const movePiece = useCallback((dx, dy) => {
-    if (!currentPiece || gameOver || isPaused || !gameStarted) return false;
+    if (!currentPiece || gameOver || isPaused || !gameStarted) return false
 
-    const newX = currentPiece.x + dx;
-    const newY = currentPiece.y + dy;
+    const newX = currentPiece.x + dx
+    const newY = currentPiece.y + dy
 
     if (isValidPosition(board, currentPiece, newX, newY)) {
       setCurrentPiece(prev => ({ ...prev, x: newX, y: newY }))
@@ -173,13 +173,13 @@ const TetrisGame = () => {
       lockCurrentPiece()
     }
 
-    return false;
-  }, [currentPiece, board, gameOver, isPaused, lockCurrentPiece, gameStarted]);
+    return false
+  }, [currentPiece, board, gameOver, isPaused, lockCurrentPiece, gameStarted])
 
   const rotate = useCallback(() => {
-    if (!currentPiece || gameOver || isPaused || !gameStarted) return;
+    if (!currentPiece || gameOver || isPaused || !gameStarted) return
 
-    const rotated = rotatePiece(currentPiece);
+    const rotated = rotatePiece(currentPiece)
     if (isValidPosition(board, rotated, rotated.x, rotated.y)) {
       setCurrentPiece(rotated)
     } else {
@@ -191,26 +191,26 @@ const TetrisGame = () => {
         }
       }
     }
-  }, [currentPiece, board, gameOver, isPaused, gameStarted]);
+  }, [currentPiece, board, gameOver, isPaused, gameStarted])
 
   const hardDrop = useCallback(() => {
-    if (!currentPiece || gameOver || isPaused || !gameStarted) return;
+    if (!currentPiece || gameOver || isPaused || !gameStarted) return
 
-    let newY = currentPiece.y;
+    let newY = currentPiece.y
     while (isValidPosition(board, currentPiece, currentPiece.x, newY + 1)) {
       newY++
     }
 
-    setCurrentPiece(prev => ({ ...prev, y: newY }));
-    setTimeout(() => lockCurrentPiece(), 50);
-  }, [currentPiece, board, gameOver, isPaused, lockCurrentPiece, gameStarted]);
+    setCurrentPiece(prev => ({ ...prev, y: newY }))
+    setTimeout(() => lockCurrentPiece(), 50)
+  }, [currentPiece, board, gameOver, isPaused, lockCurrentPiece, gameStarted])
 
   // AI Suggestion Effect
   useEffect(() => {
     if (mode === 'assisted' && currentPiece && !gameOver && !isPaused && showSuggestion && gameStarted) {
-      setSuggestionLoading(true);
+      setSuggestionLoading(true)
 
-      const gameState = { board, currentPiece, nextPiece, score, lines, level };
+      const gameState = { board, currentPiece, nextPiece, score, lines, level }
 
       tetrisAPI.getSuggestion(gameState)
         .then(data => {
@@ -224,11 +224,34 @@ const TetrisGame = () => {
           setSuggestionLoading(false)
         })
     }
-  }, [mode, currentPiece?.type, currentPiece?.rotation, board, gameOver, isPaused, showSuggestion, nextPiece, score, lines, level, gameStarted]);
+  }, [mode, currentPiece?.type, currentPiece?.rotation, board, gameOver, isPaused, showSuggestion, nextPiece, score, lines, level, gameStarted])
+
+  // Manage AI WebSocket Connections
+  useEffect(() => {
+    const shouldConnect = gameStarted && !gameOver && !isPaused
+
+    if (mode === 'auto' && shouldConnect) {
+      // Auto mode: only AI move connection
+      return () => {
+        tetrisAPI.closeAIMove()
+        tetrisAPI.closeAISuggest()
+      }
+    } else if (mode === 'assisted' && shouldConnect) {
+      // Assisted mode: only AI suggestion connection
+      return () => {
+        tetrisAPI.closeAIMove()
+        tetrisAPI.closeAISuggest()
+      }
+    } else {
+      // Close all WebSocket connections when not active, game over, or paused
+      tetrisAPI.closeAIMove()
+      tetrisAPI.closeAISuggest()
+    }
+  }, [mode, gameStarted, gameOver, isPaused])
 
   // AI Auto Play Effect
   useEffect(() => {
-    if (mode !== 'auto' || !currentPiece || gameOver || isPaused || !gameStarted) return;
+    if (mode !== 'auto' || !currentPiece || gameOver || isPaused || !gameStarted) return
 
     const timer = setTimeout(async () => {
       const gameState = { board, currentPiece, nextPiece, score, lines, level }
@@ -260,12 +283,12 @@ const TetrisGame = () => {
 
     }, 120)
 
-    return () => clearTimeout(timer);
-  }, [mode, currentPiece, board, gameOver, isPaused, nextPiece, score, lines, level, lockPieceDirectly, gameStarted]);
+    return () => clearTimeout(timer)
+  }, [mode, currentPiece, board, gameOver, isPaused, nextPiece, score, lines, level, lockPieceDirectly, gameStarted])
 
   // Keyboard Controls Effect
   useEffect(() => {
-    if ((mode !== 'manual' && mode !== 'assisted') || !gameStarted) return;
+    if ((mode !== 'manual' && mode !== 'assisted') || !gameStarted) return
 
     const handleKeyDown = (e) => {
       if (gameOver) return
@@ -304,11 +327,11 @@ const TetrisGame = () => {
           }
           break
       }
-    };
+    }
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mode, gameOver, movePiece, rotate, hardDrop, gameStarted]);
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [mode, gameOver, movePiece, rotate, hardDrop, gameStarted])
 
   // Game Loop Effect
   useEffect(() => {
@@ -323,55 +346,55 @@ const TetrisGame = () => {
 
       return () => clearInterval(gameLoopRef.current)
     }
-  }, [mode, gameOver, isPaused, movePiece, gameStarted]);
+  }, [mode, gameOver, isPaused, movePiece, gameStarted])
 
   const handleTrainAI = () => {
-    if (isTraining) return;
+    if (isTraining) return
 
-    setIsTraining(true);
-    setTrainingProgress({ generation: 0, progress: 0, message: 'Starting training...' });
+    setIsTraining(true)
+    setTrainingProgress({ generation: 0, progress: 0, message: 'Starting training...' })
 
-    const url = tetrisAPI.getTrainingStreamUrl(3, 20);
-    const eventSource = new EventSource(url);
+    const url = tetrisAPI.getTrainingUrl(3, 20)
+    const eventSource = new EventSource(url)
 
     eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      const data = JSON.parse(event.data)
 
       if (data.status === 'complete') {
         setTrainingProgress({
           generation: data.generation || 3,
           progress: 100,
           message: `Training complete! Best score: ${data.best_score.toFixed(2)}`
-        });
-        eventSource.close();
-        setIsTraining(false);
+        })
+        eventSource.close()
+        setIsTraining(false)
       } else if (data.status === 'error') {
-        setTrainingProgress(prev => ({ ...prev, message: `Error: ${data.message}` }));
-        eventSource.close();
-        setIsTraining(false);
+        setTrainingProgress(prev => ({ ...prev, message: `Error: ${data.message}` }))
+        eventSource.close()
+        setIsTraining(false)
       } else {
         // Update progress with percentage
-        let msg = `Gen ${data.generation}`;
+        let msg = `Gen ${data.generation}`
         if (data.individual && data.population_size) {
-          msg += ` (${data.individual}/${data.population_size})`;
+          msg += ` (${data.individual}/${data.population_size})`
         }
-        msg += ` - Best: ${data.overall_best?.toFixed(2) || 0} (${Math.round(data.progress)}%)`;
+        msg += ` - Best: ${data.overall_best?.toFixed(2) || 0} (${Math.round(data.progress)}%)`
 
         setTrainingProgress({
           generation: data.generation,
           progress: data.progress,
           message: msg
-        });
+        })
       }
-    };
+    }
 
     eventSource.onerror = (err) => {
-      console.error('EventSource failed:', err);
-      eventSource.close();
-      setIsTraining(false);
-      setTrainingProgress(prev => ({ ...prev, message: 'Connection lost.' }));
-    };
-  };
+      console.error('EventSource failed:', err)
+      eventSource.close()
+      setIsTraining(false)
+      setTrainingProgress(prev => ({ ...prev, message: 'Connection lost.' }))
+    }
+  }
 
   if (mode === 'menu') {
     return (

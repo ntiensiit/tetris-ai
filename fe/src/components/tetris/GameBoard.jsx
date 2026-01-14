@@ -10,7 +10,6 @@ const GameBoard = ({ board, currentPiece, aiSuggestion, showSuggestion, mode, ga
     let ghostY = currentPiece.y
     while (isValidPosition(board, currentPiece, currentPiece.x, ghostY + 1)) {
       ghostY++
-      ghostY++
     }
 
     return { ...currentPiece, y: ghostY }
@@ -87,10 +86,10 @@ const GameBoard = ({ board, currentPiece, aiSuggestion, showSuggestion, mode, ga
               <div
                 key={x}
                 className={`border transition-all ${cell === 'ghost'
-                    ? 'border-blue-400/40'
-                    : cell === 'suggestion'
-                      ? 'border-green-400/60'
-                      : 'border-gray-800/50'
+                  ? 'border-blue-400/40'
+                  : cell === 'suggestion'
+                    ? 'border-green-400/60'
+                    : 'border-gray-800/50'
                   }`}
                 style={{
                   width: BLOCK_SIZE,
