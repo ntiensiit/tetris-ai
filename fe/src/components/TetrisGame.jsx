@@ -22,6 +22,8 @@ import { tetrisAPI } from '../utils/api';
 
 const TetrisGame = () => {
   const [mode, setMode] = useState('menu');
+  const [difficulty, setDifficulty] = useState(null);
+  const [gameStarted, setGameStarted] = useState(false);
   const [board, setBoard] = useState(createBoard());
   const [currentPiece, setCurrentPiece] = useState(null);
   const [nextPiece, setNextPiece] = useState(null);
@@ -43,6 +45,12 @@ const TetrisGame = () => {
   const gameLoopRef = useRef(null);
   const lastMoveTimeRef = useRef(Date.now());
   const dropSpeedRef = useRef(500);
+
+  const dropSpeeds = {
+    easy: 700,
+    medium: 400,
+    hard: 200,
+  };
 
   const spawnPiece = useCallback(() => {
     const type = nextPiece || getRandomPieceType();
@@ -73,8 +81,10 @@ const TetrisGame = () => {
   }, [board, level, spawnPiece]);
 
   useEffect(() => {
-    dropSpeedRef.current = Math.max(100, 500 - (level - 1) * 50);
-  }, [level]);
+    if (!difficulty) return;
+    const baseSpeed = dropSpeeds[difficulty];
+    dropSpeedRef.current = Math.max(100, baseSpeed - (level - 1) * 50);
+  }, [level, difficulty]);
   
   useEffect(() => {
     const newLevel = Math.floor(lines / 10) + 1;
@@ -87,7 +97,7 @@ const TetrisGame = () => {
     }
   }, [score, highScore]);
   
-  const startGame = (gameMode) => {
+  const prepareGame = (gameMode) => {
     setMode(gameMode);
     setBoard(createBoard());
     setScore(0);
@@ -95,9 +105,21 @@ const TetrisGame = () => {
     setLevel(1);
     setGameOver(false);
     setIsPaused(false);
+    setGameStarted(false);
+    setDifficulty(null);
+    setCurrentPiece(null);
     setAiSuggestion(null);
     setNextPiece(getRandomPieceType());
-    setTimeout(() => spawnPiece(), 0);
+    
+    if (gameMode === 'auto') {
+      startGame('hard');
+    }
+  };
+
+  const startGame = (selectedDifficulty) => {
+    setDifficulty(selectedDifficulty);
+    setGameStarted(true);
+    spawnPiece();
   };
   
   const lockCurrentPiece = useCallback(() => {
@@ -116,7 +138,7 @@ const TetrisGame = () => {
   }, [board, currentPiece, spawnPiece, level]);
   
   const movePiece = useCallback((dx, dy) => {
-    if (!currentPiece || gameOver || isPaused) return false;
+    if (!currentPiece || gameOver || isPaused || !gameStarted) return false;
     
     const newX = currentPiece.x + dx;
     const newY = currentPiece.y + dy;
@@ -131,10 +153,10 @@ const TetrisGame = () => {
     }
     
     return false;
-  }, [currentPiece, board, gameOver, isPaused, lockCurrentPiece]);
+  }, [currentPiece, board, gameOver, isPaused, lockCurrentPiece, gameStarted]);
   
   const rotate = useCallback(() => {
-    if (!currentPiece || gameOver || isPaused) return;
+    if (!currentPiece || gameOver || isPaused || !gameStarted) return;
     
     const rotated = rotatePiece(currentPiece);
     if (isValidPosition(board, rotated, rotated.x, rotated.y)) {
@@ -148,10 +170,10 @@ const TetrisGame = () => {
         }
       }
     }
-  }, [currentPiece, board, gameOver, isPaused]);
+  }, [currentPiece, board, gameOver, isPaused, gameStarted]);
   
   const hardDrop = useCallback(() => {
-    if (!currentPiece || gameOver || isPaused) return;
+    if (!currentPiece || gameOver || isPaused || !gameStarted) return;
     
     let newY = currentPiece.y;
     while (isValidPosition(board, currentPiece, currentPiece.x, newY + 1)) {
@@ -160,11 +182,11 @@ const TetrisGame = () => {
     
     setCurrentPiece(prev => ({ ...prev, y: newY }));
     setTimeout(() => lockCurrentPiece(), 50);
-  }, [currentPiece, board, gameOver, isPaused, lockCurrentPiece]);
+  }, [currentPiece, board, gameOver, isPaused, lockCurrentPiece, gameStarted]);
   
   // AI Suggestion Effect
   useEffect(() => {
-    if (mode === 'assisted' && currentPiece && !gameOver && !isPaused && showSuggestion) {
+    if (mode === 'assisted' && currentPiece && !gameOver && !isPaused && showSuggestion && gameStarted) {
       setSuggestionLoading(true);
       
       const gameState = { board, currentPiece, nextPiece, score, lines, level };
@@ -181,11 +203,11 @@ const TetrisGame = () => {
           setSuggestionLoading(false);
         });
     }
-  }, [mode, currentPiece?.type, currentPiece?.rotation, board, gameOver, isPaused, showSuggestion, nextPiece, score, lines, level]);
+  }, [mode, currentPiece?.type, currentPiece?.rotation, board, gameOver, isPaused, showSuggestion, nextPiece, score, lines, level, gameStarted]);
   
   // AI Auto Play Effect
   useEffect(() => {
-    if (mode !== 'auto' || !currentPiece || gameOver || isPaused) return;
+    if (mode !== 'auto' || !currentPiece || gameOver || isPaused || !gameStarted) return;
 
     const timer = setTimeout(async () => {
       const gameState = { board, currentPiece, nextPiece, score, lines, level };
@@ -218,11 +240,11 @@ const TetrisGame = () => {
     }, 120);
 
     return () => clearTimeout(timer);
-  }, [mode, currentPiece, board, gameOver, isPaused, nextPiece, score, lines, level, lockPieceDirectly]);
+  }, [mode, currentPiece, board, gameOver, isPaused, nextPiece, score, lines, level, lockPieceDirectly, gameStarted]);
 
   // Keyboard Controls Effect
   useEffect(() => {
-    if (mode !== 'manual' && mode !== 'assisted') return;
+    if ((mode !== 'manual' && mode !== 'assisted') || !gameStarted) return;
     
     const handleKeyDown = (e) => {
       if (gameOver) return;
@@ -265,11 +287,11 @@ const TetrisGame = () => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mode, gameOver, movePiece, rotate, hardDrop]);
+  }, [mode, gameOver, movePiece, rotate, hardDrop, gameStarted]);
   
   // Game Loop Effect
   useEffect(() => {
-    if ((mode === 'manual' || mode === 'assisted') && !gameOver && !isPaused) {
+    if ((mode === 'manual' || mode === 'assisted') && !gameOver && !isPaused && gameStarted) {
       gameLoopRef.current = setInterval(() => {
         const now = Date.now();
         if (now - lastMoveTimeRef.current > dropSpeedRef.current) {
@@ -280,7 +302,7 @@ const TetrisGame = () => {
       
       return () => clearInterval(gameLoopRef.current);
     }
-  }, [mode, gameOver, isPaused, movePiece]);
+  }, [mode, gameOver, isPaused, movePiece, gameStarted]);
   
   const handleTrainAI = async () => {
     setIsTraining(true);
@@ -317,7 +339,7 @@ const TetrisGame = () => {
     return (
       <MainMenu
         highScore={highScore}
-        onStartGame={startGame}
+        onStartGame={prepareGame}
         showTraining={showTraining}
         setShowTraining={setShowTraining}
         isTraining={isTraining}
@@ -338,6 +360,8 @@ const TetrisGame = () => {
           mode={mode}
           gameOver={gameOver}
           isPaused={isPaused}
+          gameStarted={gameStarted}
+          onSelectDifficulty={startGame}
           onBackToMenu={() => setMode('menu')}
         />
         
