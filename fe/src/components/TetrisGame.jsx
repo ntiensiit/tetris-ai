@@ -106,17 +106,8 @@ const TetrisGame = () => {
     }
   }, [gameOver, score, mode])
 
-  const startGame = (gameMode) => {
+  const startGame = (gameMode, difficulty = null) => {
     const newBoard = createBoard()
-    const newNextPiece = getRandomPieceType()
-    const type = newNextPiece
-    const piece = createPiece(type)
-    const nextNext = getRandomPieceType()
-
-    if (!isValidPosition(newBoard, piece, piece.x, piece.y)) {
-      setGameOver(true)
-      return
-    }
 
     setMode(gameMode)
     setBoard(newBoard)
@@ -126,28 +117,31 @@ const TetrisGame = () => {
     setGameOver(false)
     setIsPaused(false)
     setAiSuggestion(null)
-    setCurrentPiece(piece)
-    setNextPiece(nextNext)
-  }
+    setCurrentPiece(null)
 
-  const prepareGame = (gameMode) => {
-    setMode(gameMode);
-    setBoard(createBoard());
-    setScore(0);
-    setLines(0);
-    setLevel(1);
-    setGameOver(false);
-    setIsPaused(false);
-    setGameStarted(false);
-    setDifficulty(null);
-    setCurrentPiece(null);
-    setAiSuggestion(null);
-    setNextPiece(getRandomPieceType());
+    const selectedDifficulty = gameMode === 'auto' ? 'hard' : difficulty
 
-    if (gameMode === 'auto') {
-      startGame('hard');
+    if (selectedDifficulty) {
+      setDifficulty(selectedDifficulty)
+      setGameStarted(true)
+
+      const type = getRandomPieceType()
+      const piece = createPiece(type)
+      const nextPiece = getRandomPieceType()
+
+      if (!isValidPosition(newBoard, piece, piece.x, piece.y)) {
+        setGameOver(true)
+        return
+      }
+
+      setCurrentPiece(piece)
+      setNextPiece(nextPiece)
+    } else {
+      setGameStarted(false)
+      setDifficulty(null)
+      setNextPiece(getRandomPieceType())
     }
-  };
+  }
 
   const lockCurrentPiece = useCallback(() => {
     if (!currentPiece) return
@@ -383,7 +377,7 @@ const TetrisGame = () => {
     return (
       <MainMenu
         highScore={highScore}
-        onStartGame={prepareGame}
+        onStartGame={startGame}
         showTraining={showTraining}
         setShowTraining={setShowTraining}
         isTraining={isTraining}
@@ -406,7 +400,7 @@ const TetrisGame = () => {
           gameOver={gameOver}
           isPaused={isPaused}
           gameStarted={gameStarted}
-          onSelectDifficulty={startGame}
+          onSelectDifficulty={(difficulty) => startGame(mode, difficulty)}
           onBackToMenu={() => { setMode('menu'); setGameOver(false); setIsPaused(false) }}
         />
 
