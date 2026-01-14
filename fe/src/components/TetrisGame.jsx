@@ -300,38 +300,55 @@ const TetrisGame = () => {
 
       return () => clearInterval(gameLoopRef.current)
     }
-  }, [mode, gameOver, isPaused, movePiece])
+  }, [mode, gameOver, isPaused, movePiece]);
 
-  const handleTrainAI = async () => {
-    setIsTraining(true)
-    setTrainingProgress({ generation: 0, progress: 0, message: 'Starting training...' })
+  const handleTrainAI = () => {
+    if (isTraining) return;
 
-    try {
-      const result = await tetrisAPI.trainAI(3, 20)
+    setIsTraining(true);
+    setTrainingProgress({ generation: 0, progress: 0, message: 'Starting training...' });
 
-      if (result && result.success) {
+    const url = tetrisAPI.getTrainingStreamUrl(3, 20);
+    const eventSource = new EventSource(url);
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.status === 'complete') {
         setTrainingProgress({
-          generation: 30,
+          generation: data.generation || 3,
           progress: 100,
-          message: `Training complete! Best score: ${result.best_score.toFixed(2)}`
-        })
+          message: `Training complete! Best score: ${data.best_score.toFixed(2)}`
+        });
+        eventSource.close();
+        setIsTraining(false);
+      } else if (data.status === 'error') {
+        setTrainingProgress(prev => ({ ...prev, message: `Error: ${data.message}` }));
+        eventSource.close();
+        setIsTraining(false);
       } else {
-        setTrainingProgress({
-          generation: 0,
-          progress: 0,
-          message: 'Training failed. Please check backend connection.'
-        })
-      }
-    } catch (error) {
-      setTrainingProgress({
-        generation: 0,
-        progress: 0,
-        message: 'Error: ' + error.message
-      })
-    }
+        // Update progress with percentage
+        let msg = `Gen ${data.generation}`;
+        if (data.individual && data.population_size) {
+          msg += ` (${data.individual}/${data.population_size})`;
+        }
+        msg += ` - Best: ${data.overall_best?.toFixed(2) || 0} (${Math.round(data.progress)}%)`;
 
-    setIsTraining(false)
-  }
+        setTrainingProgress({
+          generation: data.generation,
+          progress: data.progress,
+          message: msg
+        });
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error('EventSource failed:', err);
+      eventSource.close();
+      setIsTraining(false);
+      setTrainingProgress(prev => ({ ...prev, message: 'Connection lost.' }));
+    };
+  };
 
   if (mode === 'menu') {
     return (
@@ -346,6 +363,7 @@ const TetrisGame = () => {
       />
     )
   }
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-indigo-950 to-purple-950 flex items-center justify-center p-4">

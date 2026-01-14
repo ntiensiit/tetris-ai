@@ -9,38 +9,38 @@ from ai_engine import TetrisAI
 def evaluate_weights(weights: np.ndarray, episodes: int = 3, max_moves: int = 800) -> float:
     """Evaluate weights by playing multiple games"""
     total_lines = 0
-    
+
     for _ in range(episodes):
         game = GameState(seed=random.randint(0, 1000000))
         ai = TetrisAI(weights)
         moves = 0
-        
+
         while not game.game_over and moves < max_moves:
             best_move = ai.get_best_move(game)
-            
+
             if not best_move:
                 break
-            
+
             # Create piece with best move rotation and column
             rotation = best_move['rotation']
             column = best_move['column']
-            
+
             # Create new piece at target position
             piece = Piece(game.current_piece.key, rotation, column, 0)
-            
+
             # Drop piece to final position
             while game.is_valid_position(piece.move(0, 1)):
                 piece = piece.move(0, 1)
-            
+
             if not game.is_valid_position(piece):
                 break
-            
+
             # Lock piece
             game.lock_piece(piece)
             moves += 1
-        
+
         total_lines += game.lines
-    
+
     return total_lines / episodes
 
 
@@ -72,48 +72,61 @@ def train_genetic_algorithm(
     callback=None
 ) -> tuple:
     """Train AI using genetic algorithm"""
-    
+
     print(f"🧬 Starting Genetic Algorithm Training")
     print(f"📊 Generations: {generations}, Population: {population_size}")
     print("=" * 60)
-    
+
     # Initialize population
     population = [random_weights() for _ in range(population_size)]
     best_weights = None
     best_score = 0
-    
+
     for gen in range(generations):
         # Evaluate population
         scores = []
+        current_gen_best = 0
+
         for idx, weights in enumerate(population):
             score = evaluate_weights(weights)
             scores.append((score, weights))
+
+            if score > current_gen_best:
+                current_gen_best = score
+
+            # Calculate progress per individual
+            total_steps = generations * population_size
+            current_step = (gen * population_size) + (idx + 1)
+            progress = (current_step / total_steps) * 100
+
             print(f"Gen {gen+1}/{generations} - Individual {idx+1}/{population_size}: {score:.2f} lines", end='\r')
-        
+
+            if callback:
+                callback({
+                    'generation': gen + 1,
+                    'individual': idx + 1,
+                    'population_size': population_size,
+                    'best_score': current_gen_best,
+                    'overall_best': max(best_score, current_gen_best),
+                    'progress': progress
+                })
+
         scores.sort(key=lambda x: x[0], reverse=True)
-        
+
         # Update best
         if scores[0][0] > best_score:
             best_score = scores[0][0]
             best_weights = scores[0][1].copy()
-        
+
         print(f"\nGen {gen+1}/{generations}: Best={scores[0][0]:.2f}, Overall Best={best_score:.2f}")
-        
-        if callback:
-            callback({
-                'generation': gen + 1,
-                'best_score': scores[0][0],
-                'overall_best': best_score,
-                'progress': ((gen + 1) / generations) * 100
-            })
-        
+
         # Select top performers
         elite_size = population_size // 5
         elite = [w for _, w in scores[:elite_size]]
-        
+
         # Create new population
         new_population = [elite[0]]  # Keep best
-        
+
         while len(new_population) < population_size:
             if random.random() < 0.7 and len(elite) >= 2:
                 # Crossover
@@ -125,14 +138,14 @@ def train_genetic_algorithm(
                 # Mutation only
                 parent = random.choice(elite)
                 new_population.append(mutate(parent))
-        
+
         population = new_population
-    
+
     print("\n" + "=" * 60)
     print(f"✅ Training Complete!")
     print(f"🏆 Best Score: {best_score:.2f} lines/game")
     print(f"🎯 Best Weights: {best_weights}")
-    
+
     return best_weights, best_score
 
 
