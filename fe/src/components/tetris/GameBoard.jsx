@@ -1,6 +1,5 @@
-// src/components/tetris/GameBoard.jsx
-
 import React from 'react'
+import HighScorePanel from './HighScorePanel'
 import { BOARD_WIDTH, BOARD_HEIGHT, BLOCK_SIZE, TETROMINOS } from '../../utils/constants'
 import { isValidPosition } from '../../utils/gameLogic'
 
@@ -10,6 +9,7 @@ const GameBoard = ({ board, currentPiece, aiSuggestion, showSuggestion, mode, ga
 
     let ghostY = currentPiece.y
     while (isValidPosition(board, currentPiece, currentPiece.x, ghostY + 1)) {
+      ghostY++
       ghostY++
     }
 
@@ -142,16 +142,29 @@ const GameBoard = ({ board, currentPiece, aiSuggestion, showSuggestion, mode, ga
 
       {(gameOver || isPaused) && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm rounded-2xl">
-          <div className="text-center p-6 bg-gray-900/90 rounded-xl border-2 border-red-500/50">
-            <p className="text-3xl font-bold mb-4 text-white">
-              {gameOver ? '🎮 GAME OVER' : '⏸️ PAUSED'}
-            </p>
-            <button
-              onClick={onBackToMenu}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-lg font-bold transition-all transform hover:scale-105"
-            >
-              Back to Menu
-            </button>
+          <div className="text-center p-6 bg-gray-900/90 rounded-xl border-2 border-red-500/50 max-w-4xl">
+            {gameOver ? (
+              <>
+                <p className="text-2xl font-bold mb-4 text-white">🎮 GAME OVER 🎮</p>
+                <HighScorePanel mode={mode === 'assisted' ? 'ai_assist' : mode === 'auto' ? 'ai_auto' : mode} />
+                <button
+                  onClick={onBackToMenu}
+                  className="mt-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-lg font-bold transition-all transform hover:scale-105"
+                >
+                  Back to Menu
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-2xl font-bold mb-4 text-white">⏸️ PAUSED</p>
+                <button
+                  onClick={onBackToMenu}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-lg font-bold transition-all transform hover:scale-105"
+                >
+                  Back to Menu
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -56,20 +56,7 @@ export const tetrisAPI = {
     }
   },
 
-  async trainAI(generations = 3, populationSize = 20) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/train`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          generations,
-          population_size: populationSize
-        })
-      });
-      return await response.json();
-    } catch (error) {
-      console.error('Training Error:', error);
-      return null;
-    }
+  getTrainingStreamUrl(generations = 3, populationSize = 20) {
+    return `${API_BASE_URL}/train-stream?generations=${generations}&population_size=${populationSize}`;
   }
 };
