@@ -1,9 +1,0 @@
-phần cần làm:
-    -làm chọn chức năng chọn dễ, tb, khó  or khi lên cấp thì nó tự nhanh lên(điều chỉnh tốc độ nó rơi xuống)
-    -visual lên % bao nhiêu ai đang train
-    -làm thêm phần lưu lịch sử
-    -có thêm ý tường gì thì làm thêm vô
-sửa lại giao diện cho đẹp(vd: background hiện tại đang gradient thì thay kiếm ảnh hoặc cái nào đó,
-				có mấy icon thì cài bộ icon về r thêm thẻ i vào làm cho đẹp,
-				sửa lại phần menu trang chủ cho nó tối ưu, 
-				phần giao diện chính của trò chơi cũng vậy)
